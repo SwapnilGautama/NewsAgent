@@ -70,4 +70,9 @@ def main():
         website_news = fetch_news_from_web(website_url)
         if website_news:
             for i, headline in enumerate(website_news[:5]):
-                st.write(f"{i + 1}.
+                st.write(f"{i + 1}. {headline}")  # Fixed the f-string error here
+        else:
+            st.write("Failed to fetch news from the website.")
+
+if __name__ == "__main__":
+    main()
