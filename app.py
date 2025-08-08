@@ -1,45 +1,49 @@
-# Import required libraries
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import openai
-import pandas as pd
-from textblob import TextBlob
 
-# Set your OpenAI API key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-# Fetch Personalized News
-def fetch_news_from_api(topic):
-    url = f'https://newsapi.org/v2/everything?q={topic}&apiKey={st.secrets["NEWS_API_KEY"]}'
-    response = requests.get(url).json()
-    articles = response.get("articles", [])
-    return articles
-
-# Web Scraping Example (using BeautifulSoup)
+# Function to fetch and scrape news from multiple websites
 def fetch_news_from_web(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, "html.parser")
-    headlines = []
-    for headline in soup.find_all('h2'):  # Adjust this tag based on website structure
-        headlines.append(headline.get_text())
-    return headlines
-
-# Sentiment Analysis
-def sentiment_analysis(text):
-    blob = TextBlob(text)
-    return blob.sentiment.polarity
-
-# Fact-Check News (using OpenAI)
-def fact_check(news_article):
-    prompt = f"Please verify this news article for accuracy: {news_article}"
-    response = openai.Completion.create(
-      engine="text-davinci-003",
-      prompt=prompt,
-      temperature=0.5,
-      max_tokens=100
-    )
-    return response.choices[0].text.strip()
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, "html.parser")
+        headlines = []
+        
+        # Example of scraping from BBC (adjust tags based on the site)
+        if 'bbc.com' in url:
+            for headline in soup.find_all('h3'):  # Adjust based on the structure of BBC's site
+                headlines.append(headline.get_text())
+        
+        # Example of scraping from CNN (adjust tags based on the site)
+        elif 'cnn.com' in url:
+            for headline in soup.find_all('span', class_='cd__headline-text'):  # Adjust based on CNN's structure
+                headlines.append(headline.get_text())
+        
+        # Example of scraping from New York Times
+        elif 'nytimes.com' in url:
+            for headline in soup.find_all('h2', class_='css-1j9dxys e1xfvim30'):  # Adjust based on NYT's structure
+                headlines.append(headline.get_text())
+        
+        # Example of scraping from Washington Post
+        elif 'washingtonpost.com' in url:
+            for headline in soup.find_all('h3', class_='headline'):  # Adjust based on WP's structure
+                headlines.append(headline.get_text())
+        
+        # Example of scraping from Indian Express
+        elif 'indianexpress.com' in url:
+            for headline in soup.find_all('h2', class_='title'):  # Adjust based on IE's structure
+                headlines.append(headline.get_text())
+        
+        # Example of scraping from The Hindu
+        elif 'thehindu.com' in url:
+            for headline in soup.find_all('h2', class_='story-title'):  # Adjust based on The Hindu's structure
+                headlines.append(headline.get_text())
+        
+        return headlines
+    
+    except requests.exceptions.RequestException as e:
+        st.write(f"Error fetching news from {url}: {e}")
+        return []
 
 # Main Streamlit UI
 def main():
@@ -49,30 +53,28 @@ def main():
     st.sidebar.header("Personalized News Filters")
     topic = st.sidebar.text_input("Enter a topic (e.g., Technology, Sports, Politics)")
 
-    # Fetch personalized news from NewsAPI or websites
-    if topic:
-        # Fetch news from NewsAPI
-        articles = fetch_news_from_api(topic)
-        if articles:
-            st.write(f"**Showing top news for '{topic}' from NewsAPI**")
-            for article in articles[:5]:
-                st.write(f"**{article['title']}**")
-                st.write(f"[Read more]({article['url']})")
-                sentiment = sentiment_analysis(article["title"])
-                st.write(f"Sentiment: {'Positive' if sentiment > 0 else 'Negative' if sentiment < 0 else 'Neutral'}")
-                st.write(f"Fact-check: {fact_check(article['title'])}")
-        else:
-            st.write("No articles found for this topic.")
+    # List of news websites to scrape
+    news_sites = [
+        "https://www.bbc.com",
+        "https://edition.cnn.com",
+        "https://www.nytimes.com",
+        "https://www.washingtonpost.com",
+        "https://indianexpress.com",
+        "https://www.thehindu.com"
+    ]
 
-        # Fetch news from an example website (if available)
-        st.write("**Scraping news from a website**")
-        website_url = "https://example-news-site.com"  # Replace with an actual URL that allows scraping
-        website_news = fetch_news_from_web(website_url)
-        if website_news:
-            for i, headline in enumerate(website_news[:5]):
-                st.write(f"{i + 1}. {headline}")  # Fixed the f-string error here
-        else:
-            st.write("Failed to fetch news from the website.")
+    # Fetch and display news from each site
+    if topic:
+        st.write(f"**News about '{topic}' from major outlets:**")
+
+        for site in news_sites:
+            st.write(f"**Headlines from {site}:**")
+            website_news = fetch_news_from_web(site)
+            if website_news:
+                for i, headline in enumerate(website_news[:5]):
+                    st.write(f"{i + 1}. {headline}")
+            else:
+                st.write("Failed to fetch news from this website.")
 
 if __name__ == "__main__":
     main()
