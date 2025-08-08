@@ -3,20 +3,29 @@ import requests
 import openai
 
 # Set your OpenAI API key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+openai.api_key = "your_openai_api_key"  # Replace this with your actual OpenAI key
+
+# NewsAPI key directly added to the code (not recommended for production)
+NEWS_API_KEY = "82797d4e33c04dfeb3e81ec2aa1178d3"  # Your NewsAPI Key
 
 # Function to fetch news articles using NewsAPI
 def fetch_news_from_api(topic):
-    api_key = st.secrets["NEWS_API_KEY"]  # Add your API key in secrets.toml
-    url = f'https://newsapi.org/v2/everything?q={topic}&apiKey={api_key}'
+    url = f'https://newsapi.org/v2/everything?q={topic}&apiKey={NEWS_API_KEY}'
     
-    response = requests.get(url).json()
-    
-    if response.get("status") == "ok":
-        articles = response.get("articles", [])
-        return articles
-    else:
-        st.write("Error fetching articles from NewsAPI.")
+    try:
+        response = requests.get(url).json()
+
+        # Check if the response is valid and contains articles
+        if response.get("status") == "ok":
+            articles = response.get("articles", [])
+            if not articles:
+                st.write(f"No articles found for the topic: {topic}")
+            return articles
+        else:
+            st.write(f"Error: {response.get('message', 'Unknown error')}")
+            return []
+    except Exception as e:
+        st.write(f"Error fetching articles from NewsAPI: {e}")
         return []
 
 # Function to generate a summary using OpenAI GPT model
