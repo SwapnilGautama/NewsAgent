@@ -1,76 +1,23 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import openai
 
 # Set your OpenAI API key
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Function to fetch and scrape news from multiple websites
-def fetch_news_from_web(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-
-    try:
-        response = requests.get(url, headers=headers)
-        
-        # Check if the request was successful
-        if response.status_code != 200:
-            st.write(f"Failed to fetch news from {url}. Status code: {response.status_code}")
-            return [], []
-        
-        soup = BeautifulSoup(response.content, "html.parser")
-        headlines = []
-        content = []
-        
-        # Example of scraping from BBC (adjust tags based on the site)
-        if 'bbc.com' in url:
-            for headline in soup.find_all('h3'):  # Adjust based on BBC's site structure
-                headlines.append(headline.get_text())
-            for article in soup.find_all('div', class_='story-body__inner'):  # Body of the article
-                content.append(article.get_text())
-        
-        # Example of scraping from CNN
-        elif 'cnn.com' in url:
-            for headline in soup.find_all('span', class_='cd__headline-text'):  # Adjust for CNN
-                headlines.append(headline.get_text())
-            for article in soup.find_all('div', class_='l-container'):  # Body of the article
-                content.append(article.get_text())
-        
-        # Example of scraping from New York Times
-        elif 'nytimes.com' in url:
-            for headline in soup.find_all('h2', class_='css-1j9dxys e1xfvim30'):  # Adjust for NYT
-                headlines.append(headline.get_text())
-            for article in soup.find_all('section', class_='meteredContent'):  # Body of the article
-                content.append(article.get_text())
-        
-        # Example of scraping from Washington Post
-        elif 'washingtonpost.com' in url:
-            for headline in soup.find_all('h3', class_='headline'):  # Adjust for WP
-                headlines.append(headline.get_text())
-            for article in soup.find_all('div', class_='article-body'):  # Body of the article
-                content.append(article.get_text())
-        
-        # Example of scraping from Indian Express
-        elif 'indianexpress.com' in url:
-            for headline in soup.find_all('h2', class_='title'):  # Adjust for IE
-                headlines.append(headline.get_text())
-            for article in soup.find_all('div', class_='article-content'):  # Body of the article
-                content.append(article.get_text())
-        
-        # Example of scraping from The Hindu
-        elif 'thehindu.com' in url:
-            for headline in soup.find_all('h2', class_='story-title'):  # Adjust for The Hindu
-                headlines.append(headline.get_text())
-            for article in soup.find_all('div', class_='article'):  # Body of the article
-                content.append(article.get_text())
-        
-        return headlines, content
+# Function to fetch news articles using NewsAPI
+def fetch_news_from_api(topic):
+    api_key = st.secrets["NEWS_API_KEY"]  # Add your API key in secrets.toml
+    url = f'https://newsapi.org/v2/everything?q={topic}&apiKey={api_key}'
     
-    except requests.exceptions.RequestException as e:
-        st.write(f"Error fetching news from {url}: {e}")
-        return [], []
+    response = requests.get(url).json()
+    
+    if response.get("status") == "ok":
+        articles = response.get("articles", [])
+        return articles
+    else:
+        st.write("Error fetching articles from NewsAPI.")
+        return []
 
 # Function to generate a summary using OpenAI GPT model
 def generate_summary(content):
@@ -97,41 +44,27 @@ def main():
     st.sidebar.header("Personalized News Filters")
     topic = st.sidebar.text_input("Enter a topic (e.g., Technology, Sports, Politics)")
 
-    # List of news websites to scrape
-    news_sites = [
-        "https://www.bbc.com",
-        "https://edition.cnn.com",
-        "https://www.nytimes.com",
-        "https://www.washingtonpost.com",
-        "https://indianexpress.com",
-        "https://www.thehindu.com"
-    ]
-
-    # Fetch and display news from each site
+    # Fetch and display news from NewsAPI
     if topic:
         st.write(f"**News about '{topic}' from major outlets:**")
 
         all_content = []  # Store all content for summary generation
 
-        for site in news_sites:
-            st.write(f"**Headlines from {site}:**")
-            website_news, website_content = fetch_news_from_web(site)
-            
-            if website_news and website_content:
-                # Display the headlines
-                for i, headline in enumerate(website_news[:5]):
-                    st.write(f"{i + 1}. {headline}")
-                all_content.extend(website_content)  # Add the content to the summary generation list
-            else:
-                st.write("Failed to fetch news from this website.")
+        # Fetch news articles from NewsAPI
+        articles = fetch_news_from_api(topic)
         
-        if all_content:
+        if articles:
+            for i, article in enumerate(articles[:5]):  # Display top 5 articles
+                st.write(f"**{i + 1}. {article['title']}**")
+                st.write(f"[Read more]({article['url']})")
+                all_content.append(article['description'] if article['description'] else article['title'])  # Use description or title if description is missing
+            
             # Generate a summary of the combined articles
             summary = generate_summary(all_content)
             st.write("**Consolidated Summary of Articles**")
             st.write(summary)
         else:
-            st.write("No content available to summarize.")
+            st.write("No articles found for this topic.")
 
 if __name__ == "__main__":
     main()
